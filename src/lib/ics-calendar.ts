@@ -4,7 +4,7 @@ import { format, addDays } from 'date-fns';
 /**
  * Generates ICS content for a single calendar event
  */
-function generateIcsEvent(entry: DutyEntry, employee: Employee): string {
+function generateIcsEvent(entry: DutyEntry, employee: Employee, organizerEmail: string): string {
   const eventDate = new Date(entry.date);
   const nextDay = addDays(eventDate, 1);
   
@@ -21,9 +21,10 @@ function generateIcsEvent(entry: DutyEntry, employee: Employee): string {
     `DTSTAMP:${format(new Date(), "yyyyMMdd'T'HHmmss'Z'")}`,
     `DTSTART;VALUE=DATE:${startDate}`,
     `DTEND;VALUE=DATE:${endDate}`,
-    `SUMMARY:Küchendienst - ${employee.name}`,
-    `DESCRIPTION:Küchendienst am ${entry.weekday}\\nZuständig: ${employee.name}`,
-    employee.email ? `ATTENDEE;CN=${employee.name}:mailto:${employee.email}` : '',
+    `SUMMARY:Küchendienst`,
+    `DESCRIPTION:Küchendienst am ${entry.weekday}`,
+    `ORGANIZER;CN=Küchendienst Planer:mailto:${organizerEmail}`,
+    employee.email ? `ATTENDEE;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED;RSVP=FALSE;CN=${employee.name}:mailto:${employee.email}` : '',
     'END:VEVENT',
   ].filter(line => line !== '');
   
@@ -33,13 +34,13 @@ function generateIcsEvent(entry: DutyEntry, employee: Employee): string {
 /**
  * Generates a complete ICS file content for multiple events
  */
-export function generateIcsFile(entries: DutyEntry[], employees: Employee[]): string {
+export function generateIcsFile(entries: DutyEntry[], employees: Employee[], organizerEmail: string = 'kuechendienst@example.com'): string {
   const events = entries
     .filter(entry => entry.employeeId)
     .map(entry => {
       const employee = employees.find(e => e.id === entry.employeeId);
       if (!employee) return null;
-      return generateIcsEvent(entry, employee);
+      return generateIcsEvent(entry, employee, organizerEmail);
     })
     .filter((event): event is string => event !== null);
 
@@ -48,7 +49,7 @@ export function generateIcsFile(entries: DutyEntry[], employees: Employee[]): st
     'VERSION:2.0',
     'PRODID:-//Küchendienst//Kitchen Duty Planner//DE',
     'CALSCALE:GREGORIAN',
-    'METHOD:PUBLISH',
+    'METHOD:REQUEST',
     ...events,
     'END:VCALENDAR',
   ].join('\r\n');

@@ -24,6 +24,7 @@ function generateIcsEvent(entry: DutyEntry, employee: Employee, organizerEmail: 
     `SUMMARY:Küchendienst`,
     `DESCRIPTION:Küchendienst am ${entry.weekday}`,
     `ORGANIZER;CN=Küchendienst Planer:mailto:${organizerEmail}`,
+    employee.email ? `ATTENDEE;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED;RSVP=FALSE;CN=${employee.name}:mailto:${employee.email}` : '',
     'END:VEVENT',
   ].filter(line => line !== '');
   
@@ -48,7 +49,7 @@ export function generateIcsFile(entries: DutyEntry[], employees: Employee[], org
     'VERSION:2.0',
     'PRODID:-//Küchendienst//Kitchen Duty Planner//DE',
     'CALSCALE:GREGORIAN',
-    'METHOD:PUBLISH',
+    'METHOD:REQUEST',
     ...events,
     'END:VCALENDAR',
   ].join('\r\n');

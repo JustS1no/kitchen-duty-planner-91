@@ -1,5 +1,6 @@
 import { DutyEntry, Employee } from '@/types/kitchen-duty';
 import { formatDateDE } from '@/lib/kitchen-duty-utils';
+import { openMultipleOutlookCalendars } from '@/lib/outlook-calendar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -18,7 +19,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Lock, LockOpen, Shuffle, CalendarDays, Save, X } from 'lucide-react';
+import { Lock, LockOpen, Shuffle, CalendarDays, Save, X, Calendar } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface DutyPlanTableProps {
   plan: DutyEntry[];
@@ -43,10 +45,12 @@ export function DutyPlanTable({
   onConfirm,
   onCancel,
 }: DutyPlanTableProps) {
+  const { toast } = useToast();
   const activeEmployees = employees.filter(e => e.active);
   const allSelected = plan.length > 0 && plan.every(e => selectedIds.has(e.id));
   const someSelected = selectedIds.size > 0;
   const lockedCount = plan.filter(e => e.isLocked).length;
+  const assignedEntries = plan.filter(e => e.employeeId);
 
   const handleSelectAll = () => {
     if (allSelected) {
@@ -74,6 +78,29 @@ export function DutyPlanTable({
   const handleUnlockSelected = () => {
     onToggleLock(Array.from(selectedIds), false);
     onSelectionChange(new Set());
+  };
+
+  const handleOpenOutlookCalendars = () => {
+    const { success, errors } = openMultipleOutlookCalendars(assignedEntries, employees);
+    
+    if (errors.length > 0) {
+      toast({
+        title: 'Hinweis',
+        description: `${success} Termine geöffnet. Probleme: ${errors.join(', ')}`,
+        variant: 'destructive',
+      });
+    } else if (success > 0) {
+      toast({
+        title: 'Outlook geöffnet',
+        description: `${success} Kalendertermin${success > 1 ? 'e' : ''} in Outlook Web geöffnet.`,
+      });
+    } else {
+      toast({
+        title: 'Keine Termine',
+        description: 'Keine zugewiesenen Dienste mit gültigen E-Mail-Adressen gefunden.',
+        variant: 'destructive',
+      });
+    }
   };
 
   if (plan.length === 0) {
@@ -129,6 +156,16 @@ export function DutyPlanTable({
             Neu würfeln
           </Button>
           <div className="flex-1" />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleOpenOutlookCalendars}
+            disabled={assignedEntries.length === 0}
+            title="Öffnet Outlook Web für alle zugewiesenen Termine"
+          >
+            <Calendar className="h-4 w-4 mr-1" />
+            In Outlook eintragen
+          </Button>
           <Button
             variant="ghost"
             size="sm"

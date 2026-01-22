@@ -1,6 +1,7 @@
 export interface Employee {
   id: string;
   name: string;
+  email: string | null;
   active: boolean;
   lastDutyDate: string | null; // ISO date string or null
 }

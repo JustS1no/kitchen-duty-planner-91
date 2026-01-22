@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Trash2, Users, Calendar } from 'lucide-react';
+import { Plus, Trash2, Users, Calendar, Mail } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface EmployeeManagementProps {
@@ -23,6 +23,7 @@ interface EmployeeManagementProps {
 
 export function EmployeeManagement({ employees, onEmployeesChange }: EmployeeManagementProps) {
   const [newName, setNewName] = useState('');
+  const [newEmail, setNewEmail] = useState('');
   const [newLastDuty, setNewLastDuty] = useState('');
 
   const handleAddEmployee = () => {
@@ -33,12 +34,14 @@ export function EmployeeManagement({ employees, onEmployeesChange }: EmployeeMan
     const newEmployee: Employee = {
       id: generateId(),
       name: newName.trim(),
+      email: newEmail.trim() || null,
       active: true,
       lastDutyDate: lastDutyDate ? format(lastDutyDate, 'yyyy-MM-dd') : null,
     };
     
     onEmployeesChange([...employees, newEmployee]);
     setNewName('');
+    setNewEmail('');
     setNewLastDuty('');
   };
 
@@ -58,6 +61,16 @@ export function EmployeeManagement({ employees, onEmployeesChange }: EmployeeMan
       employees.map(e =>
         e.id === id
           ? { ...e, lastDutyDate: parsed ? format(parsed, 'yyyy-MM-dd') : null }
+          : e
+      )
+    );
+  };
+
+  const handleUpdateEmail = (id: string, email: string) => {
+    onEmployeesChange(
+      employees.map(e =>
+        e.id === id
+          ? { ...e, email: email.trim() || null }
           : e
       )
     );
@@ -83,8 +96,15 @@ export function EmployeeManagement({ employees, onEmployeesChange }: EmployeeMan
             placeholder="Name"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            className="flex-1 min-w-[200px]"
+            className="flex-1 min-w-[150px]"
             onKeyDown={(e) => e.key === 'Enter' && handleAddEmployee()}
+          />
+          <Input
+            type="email"
+            placeholder="E-Mail"
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+            className="flex-1 min-w-[200px]"
           />
           <Input
             placeholder="Letzter Dienst (TT.MM.JJJJ)"
@@ -103,16 +123,17 @@ export function EmployeeManagement({ employees, onEmployeesChange }: EmployeeMan
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
-                <TableHead className="w-[40%]">Name</TableHead>
-                <TableHead className="w-[25%]">Letzter Dienst</TableHead>
-                <TableHead className="w-[15%] text-center">Aktiv</TableHead>
+                <TableHead className="w-[25%]">Name</TableHead>
+                <TableHead className="w-[25%]">E-Mail</TableHead>
+                <TableHead className="w-[20%]">Letzter Dienst</TableHead>
+                <TableHead className="w-[10%] text-center">Aktiv</TableHead>
                 <TableHead className="w-[20%] text-right">Aktionen</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {employees.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                     Noch keine Mitarbeitenden angelegt
                   </TableCell>
                 </TableRow>
@@ -125,7 +146,19 @@ export function EmployeeManagement({ employees, onEmployeesChange }: EmployeeMan
                     <TableCell className="font-medium">{employee.name}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <Input
+                          type="email"
+                          value={employee.email || ''}
+                          onChange={(e) => handleUpdateEmail(employee.id, e.target.value)}
+                          placeholder="email@example.com"
+                          className="h-8"
+                        />
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                         <Input
                           value={employee.lastDutyDate ? formatDateDE(new Date(employee.lastDutyDate)) : ''}
                           onChange={(e) => handleUpdateLastDuty(employee.id, e.target.value)}

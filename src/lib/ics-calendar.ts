@@ -34,7 +34,7 @@ function generateIcsEvent(entry: DutyEntry, employee: Employee, organizerEmail: 
 /**
  * Generates a complete ICS file content for multiple events
  */
-export function generateIcsFile(entries: DutyEntry[], employees: Employee[], organizerEmail: string = 'charlotte.luehrs@untis.de'): string {
+export function generateIcsFile(entries: DutyEntry[], employees: Employee[], organizerEmail: string = 'kuechendienst@example.com'): string {
   const events = entries
     .filter(entry => entry.employeeId)
     .map(entry => {

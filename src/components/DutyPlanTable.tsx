@@ -1,6 +1,6 @@
 import { DutyEntry, Employee } from '@/types/kitchen-duty';
 import { formatDateDE } from '@/lib/kitchen-duty-utils';
-import { openMultipleOutlookCalendars } from '@/lib/outlook-calendar';
+import { downloadIcsFile } from '@/lib/ics-calendar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Lock, LockOpen, Shuffle, CalendarDays, Save, X, Calendar } from 'lucide-react';
+import { Lock, LockOpen, Shuffle, CalendarDays, Save, X, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface DutyPlanTableProps {
@@ -80,25 +80,24 @@ export function DutyPlanTable({
     onSelectionChange(new Set());
   };
 
-  const handleOpenOutlookCalendars = () => {
-    const { success, errors } = openMultipleOutlookCalendars(assignedEntries, employees);
+  const handleDownloadIcs = () => {
+    const { success, errors } = downloadIcsFile(plan, employees);
     
-    if (errors.length > 0) {
+    if (errors.length > 0 && success === 0) {
       toast({
-        title: 'Hinweis',
-        description: `${success} Termine geöffnet. Probleme: ${errors.join(', ')}`,
+        title: 'Keine Termine',
+        description: errors.join(', '),
         variant: 'destructive',
       });
-    } else if (success > 0) {
+    } else if (errors.length > 0) {
       toast({
-        title: 'Outlook geöffnet',
-        description: `${success} Kalendertermin${success > 1 ? 'e' : ''} in Outlook Web geöffnet.`,
+        title: 'ICS heruntergeladen',
+        description: `${success} Termine exportiert. Hinweise: ${errors.join(', ')}`,
       });
     } else {
       toast({
-        title: 'Keine Termine',
-        description: 'Keine zugewiesenen Dienste mit gültigen E-Mail-Adressen gefunden.',
-        variant: 'destructive',
+        title: 'ICS heruntergeladen',
+        description: `${success} Kalendertermin${success > 1 ? 'e' : ''} als ICS-Datei exportiert.`,
       });
     }
   };
@@ -159,12 +158,12 @@ export function DutyPlanTable({
           <Button
             variant="outline"
             size="sm"
-            onClick={handleOpenOutlookCalendars}
+            onClick={handleDownloadIcs}
             disabled={assignedEntries.length === 0}
-            title="Öffnet Outlook Web für alle zugewiesenen Termine"
+            title="Lädt eine ICS-Datei herunter, die in jeden Kalender importiert werden kann"
           >
-            <Calendar className="h-4 w-4 mr-1" />
-            In Outlook eintragen
+            <Download className="h-4 w-4 mr-1" />
+            Kalender-Export (.ics)
           </Button>
           <Button
             variant="ghost"

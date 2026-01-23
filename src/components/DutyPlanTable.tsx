@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { DutyEntry, Employee } from '@/types/kitchen-duty';
 import { formatDateDE } from '@/lib/kitchen-duty-utils';
 import { downloadIcsFile } from '@/lib/ics-calendar';
@@ -19,8 +20,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Lock, LockOpen, Shuffle, CalendarDays, Save, X, Download } from 'lucide-react';
+import { Lock, LockOpen, Shuffle, CalendarDays, Save, X, Download, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { SendInvitationsDialog } from './SendInvitationsDialog';
 
 interface DutyPlanTableProps {
   plan: DutyEntry[];
@@ -46,6 +48,7 @@ export function DutyPlanTable({
   onCancel,
 }: DutyPlanTableProps) {
   const { toast } = useToast();
+  const [sendDialogOpen, setSendDialogOpen] = useState(false);
   const activeEmployees = employees.filter(e => e.active);
   const allSelected = plan.length > 0 && plan.every(e => selectedIds.has(e.id));
   const someSelected = selectedIds.size > 0;
@@ -163,7 +166,17 @@ export function DutyPlanTable({
             title="Lädt eine ICS-Datei herunter, die in jeden Kalender importiert werden kann"
           >
             <Download className="h-4 w-4 mr-1" />
-            Kalender-Export (.ics)
+            Export (.ics)
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => setSendDialogOpen(true)}
+            disabled={assignedEntries.length === 0}
+            className="gap-1"
+          >
+            <Send className="h-4 w-4" />
+            Per Mail senden
           </Button>
           <Button
             variant="ghost"
@@ -253,6 +266,13 @@ export function DutyPlanTable({
           </Table>
         </div>
       </CardContent>
+
+      <SendInvitationsDialog
+        open={sendDialogOpen}
+        onOpenChange={setSendDialogOpen}
+        plan={plan}
+        employees={employees}
+      />
     </Card>
   );
 }

@@ -3,6 +3,8 @@ import { format, addDays } from 'date-fns';
 
 /**
  * Generates ICS content for a single calendar event
+ * Note: ORGANIZER and ATTENDEE are omitted to prevent Exchange path issues
+ * when importing locally
  */
 function generateIcsEvent(entry: DutyEntry, employee: Employee): string {
   const eventDate = new Date(entry.date);
@@ -23,16 +25,39 @@ function generateIcsEvent(entry: DutyEntry, employee: Employee): string {
     `DTEND;VALUE=DATE:${endDate}`,
     `SUMMARY:Küchendienst - ${employee.name}`,
     `DESCRIPTION:Küchendienst am ${entry.weekday}`,
-    employee.email ? `ORGANIZER:mailto:${employee.email}` : '',
-    employee.email ? `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:${employee.email}` : '',
     'END:VEVENT',
-  ].filter(line => line !== '');
+  ];
   
   return lines.join('\r\n');
 }
 
 /**
- * Generates a complete ICS file content for multiple events
+ * Generates a complete ICS file content for a single employee's events
+ */
+export function generateIcsFileForEmployee(entries: DutyEntry[], employee: Employee): string {
+  const employeeEntries = entries.filter(entry => entry.employeeId === employee.id);
+  
+  if (employeeEntries.length === 0) {
+    return '';
+  }
+
+  const events = employeeEntries.map(entry => generateIcsEvent(entry, employee));
+
+  const icsContent = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Küchendienst//Kitchen Duty Planner//DE',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    ...events,
+    'END:VCALENDAR',
+  ].join('\r\n');
+
+  return icsContent;
+}
+
+/**
+ * Generates a complete ICS file content for multiple events (all employees)
  */
 export function generateIcsFile(entries: DutyEntry[], employees: Employee[]): string {
   const events = entries
@@ -49,12 +74,87 @@ export function generateIcsFile(entries: DutyEntry[], employees: Employee[]): st
     'VERSION:2.0',
     'PRODID:-//Küchendienst//Kitchen Duty Planner//DE',
     'CALSCALE:GREGORIAN',
-    'METHOD:REQUEST',
+    'METHOD:PUBLISH',
     ...events,
     'END:VCALENDAR',
   ].join('\r\n');
 
   return icsContent;
+}
+
+/**
+ * Creates a mailto link that opens the email client with an ICS attachment
+ * Note: Due to mailto limitations, we can't attach files directly.
+ * Instead, we create a data URL that can be copied to clipboard.
+ */
+export interface MailtoData {
+  employeeEmail: string;
+  employeeName: string;
+  subject: string;
+  body: string;
+  icsContent: string;
+  icsFileName: string;
+}
+
+/**
+ * Generates mailto data for each employee with their duty assignments
+ */
+export function generateMailtoDataForEmployees(
+  entries: DutyEntry[], 
+  employees: Employee[]
+): MailtoData[] {
+  const result: MailtoData[] = [];
+  
+  const employeesWithDuties = employees.filter(emp => 
+    emp.email && entries.some(entry => entry.employeeId === emp.id)
+  );
+
+  for (const employee of employeesWithDuties) {
+    const employeeEntries = entries.filter(entry => entry.employeeId === employee.id);
+    const icsContent = generateIcsFileForEmployee(entries, employee);
+    
+    if (!icsContent || !employee.email) continue;
+
+    const dutyDates = employeeEntries
+      .map(e => `• ${e.weekday}, ${format(new Date(e.date), 'dd.MM.yyyy')}`)
+      .join('\n');
+
+    result.push({
+      employeeEmail: employee.email,
+      employeeName: employee.name,
+      subject: `Küchendienst-Termine`,
+      body: `Hallo ${employee.name},\n\nanbei deine Küchendienst-Termine:\n\n${dutyDates}\n\nBitte füge die angehängte ICS-Datei zu deinem Kalender hinzu.\n\nViele Grüße`,
+      icsContent,
+      icsFileName: `kuechendienst-${employee.name.toLowerCase().replace(/\s+/g, '-')}.ics`,
+    });
+  }
+
+  return result;
+}
+
+/**
+ * Opens mailto link for a specific employee
+ */
+export function openMailtoForEmployee(mailtoData: MailtoData): void {
+  const mailtoUrl = `mailto:${encodeURIComponent(mailtoData.employeeEmail)}?subject=${encodeURIComponent(mailtoData.subject)}&body=${encodeURIComponent(mailtoData.body)}`;
+  window.open(mailtoUrl, '_blank');
+}
+
+/**
+ * Downloads an ICS file for a specific employee
+ */
+export function downloadIcsFileForEmployee(mailtoData: MailtoData): void {
+  const blob = new Blob([mailtoData.icsContent], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = mailtoData.icsFileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  
+  URL.revokeObjectURL(url);
 }
 
 /**

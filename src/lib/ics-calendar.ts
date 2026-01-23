@@ -4,7 +4,7 @@ import { format, addDays } from 'date-fns';
 /**
  * Generates ICS content for a single calendar event
  */
-function generateIcsEvent(entry: DutyEntry, employee: Employee, organizerEmail: string): string {
+function generateIcsEvent(entry: DutyEntry, employee: Employee): string {
   const eventDate = new Date(entry.date);
   const nextDay = addDays(eventDate, 1);
   
@@ -21,10 +21,10 @@ function generateIcsEvent(entry: DutyEntry, employee: Employee, organizerEmail: 
     `DTSTAMP:${format(new Date(), "yyyyMMdd'T'HHmmss'Z'")}`,
     `DTSTART;VALUE=DATE:${startDate}`,
     `DTEND;VALUE=DATE:${endDate}`,
-    `SUMMARY:Küchendienst`,
+    `SUMMARY:Küchendienst - ${employee.name}`,
     `DESCRIPTION:Küchendienst am ${entry.weekday}`,
-    `ORGANIZER;CN=Küchendienst Planer:mailto:${organizerEmail}`,
-    employee.email ? `ATTENDEE;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED;RSVP=FALSE;CN=${employee.name}:mailto:${employee.email}` : '',
+    employee.email ? `ORGANIZER:mailto:${employee.email}` : '',
+    employee.email ? `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:${employee.email}` : '',
     'END:VEVENT',
   ].filter(line => line !== '');
   
@@ -34,13 +34,13 @@ function generateIcsEvent(entry: DutyEntry, employee: Employee, organizerEmail: 
 /**
  * Generates a complete ICS file content for multiple events
  */
-export function generateIcsFile(entries: DutyEntry[], employees: Employee[], organizerEmail: string = 'kuechendienst@example.com'): string {
+export function generateIcsFile(entries: DutyEntry[], employees: Employee[]): string {
   const events = entries
     .filter(entry => entry.employeeId)
     .map(entry => {
       const employee = employees.find(e => e.id === entry.employeeId);
       if (!employee) return null;
-      return generateIcsEvent(entry, employee, organizerEmail);
+      return generateIcsEvent(entry, employee);
     })
     .filter((event): event is string => event !== null);
 

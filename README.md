@@ -1,73 +1,66 @@
-# Welcome to your Lovable project
+# Küchendienst-Planer
 
-## Project info
+Eine Anwendung zur wochenweisen Planung von Küchendiensten.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Web-Version
 
-## How can I edit this code?
+Die Web-Version läuft direkt im Browser und unterstützt:
+- ICS-Download für manuelle Kalender-Importe
+- mailto-Links zum E-Mail-Versand
 
-There are several ways of editing your application.
+## Desktop-App (Electron)
 
-**Use Lovable**
+Die Desktop-App bietet zusätzlich:
+- **Direktes Öffnen in Outlook** – Termine werden ohne Umweg in Outlook geöffnet
+- Offline-Unterstützung
+- Native Windows/Mac-Integration
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+### Desktop-App bauen
 
-Changes made via Lovable will be committed automatically to this repo.
+1. **Repository klonen und Abhängigkeiten installieren:**
+   ```bash
+   git clone <repo-url>
+   cd kuechendienst-planer
+   npm install
+   ```
 
-**Use your preferred IDE**
+2. **Web-Assets bauen:**
+   ```bash
+   npm run build
+   ```
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+3. **Electron-App starten (Entwicklung):**
+   ```bash
+   npm run electron:dev
+   ```
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+4. **Installer erstellen:**
+   ```bash
+   # Windows
+   npm run electron:build:win
+   
+   # Mac
+   npm run electron:build:mac
+   ```
 
-Follow these steps:
+Die fertigen Installer befinden sich im `release/`-Ordner.
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### Systemanforderungen
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+- **Windows:** Windows 10 oder höher, Microsoft Outlook
+- **Mac:** macOS 10.13 oder höher, Microsoft Outlook für Mac
 
-# Step 3: Install the necessary dependencies.
-npm i
+## Funktionen
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+- Wochenplanung mit konfigurierbaren Tagen (Mo–Fr)
+- Automatische Vorschläge basierend auf fairem Rotationsprinzip
+- Fixieren von Zuweisungen
+- Export als ICS-Kalenderdatei
+- Direktes Eintragen in Outlook (nur Desktop-App)
+- E-Mail-Versand mit ICS-Anhang
 
-**Edit a file directly in GitHub**
+## Technologien
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- Vite + React + TypeScript
+- Tailwind CSS + shadcn/ui
+- Electron (Desktop-App)

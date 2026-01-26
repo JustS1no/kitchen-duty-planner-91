@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { DutyEntry, Employee } from '@/types/kitchen-duty';
 import { formatDateDE } from '@/lib/kitchen-duty-utils';
 import { downloadIcsFile } from '@/lib/ics-calendar';
+import { isElectronEnvironment } from '@/lib/electron-calendar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -20,9 +21,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Lock, LockOpen, Shuffle, CalendarDays, Save, X, Download, Send } from 'lucide-react';
+import { Lock, LockOpen, Shuffle, CalendarDays, Save, X, Download, Send, Monitor } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { SendInvitationsDialog } from './SendInvitationsDialog';
+import { OutlookCalendarDialog } from './OutlookCalendarDialog';
 
 interface DutyPlanTableProps {
   plan: DutyEntry[];
@@ -49,6 +51,8 @@ export function DutyPlanTable({
 }: DutyPlanTableProps) {
   const { toast } = useToast();
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [outlookDialogOpen, setOutlookDialogOpen] = useState(false);
+  const isElectron = isElectronEnvironment();
   const activeEmployees = employees.filter(e => e.active);
   const allSelected = plan.length > 0 && plan.every(e => selectedIds.has(e.id));
   const someSelected = selectedIds.size > 0;
@@ -169,7 +173,18 @@ export function DutyPlanTable({
             Export (.ics)
           </Button>
           <Button
-            variant="default"
+            variant={isElectron ? "default" : "outline"}
+            size="sm"
+            onClick={() => setOutlookDialogOpen(true)}
+            disabled={assignedEntries.length === 0}
+            className="gap-1"
+            title={isElectron ? "Öffnet Termine direkt in Outlook" : "Desktop-App für direktes Öffnen verwenden"}
+          >
+            <Monitor className="h-4 w-4" />
+            {isElectron ? "In Outlook öffnen" : "Outlook (Desktop)"}
+          </Button>
+          <Button
+            variant="outline"
             size="sm"
             onClick={() => setSendDialogOpen(true)}
             disabled={assignedEntries.length === 0}
@@ -270,6 +285,13 @@ export function DutyPlanTable({
       <SendInvitationsDialog
         open={sendDialogOpen}
         onOpenChange={setSendDialogOpen}
+        plan={plan}
+        employees={employees}
+      />
+
+      <OutlookCalendarDialog
+        open={outlookDialogOpen}
+        onOpenChange={setOutlookDialogOpen}
         plan={plan}
         employees={employees}
       />

@@ -3,10 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
-// Handle creating/removing shortcuts on Windows when installing/uninstalling.
-if (require('electron-squirrel-startup')) {
-  app.quit();
-}
+// Note: electron-squirrel-startup is not needed for NSIS installers
 
 let mainWindow;
 

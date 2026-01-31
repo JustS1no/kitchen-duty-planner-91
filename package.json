@@ -1,5 +1,9 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "kitchen-duty-planner",
+  "version": "1.0.0",
+  "description": "Küchendienst-Planer für Teams",
+  "author": "Sina Shirvani",
+  "main": "electron/main.cjs",
   "private": true,
   "version": "0.0.0",
   "type": "module",

@@ -2,10 +2,12 @@
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
   "appId": "com.kuechendienst.planer",
   "productName": "Küchendienst-Planer",
-  "main": "electron/main.cjs",
   "directories": {
     "output": "release",
     "buildResources": "build"
+  },
+  "extraMetadata": {
+    "main": "electron/main.cjs"
   },
   "files": [
     "dist/**/*",

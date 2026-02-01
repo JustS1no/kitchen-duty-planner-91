@@ -24,12 +24,13 @@ const createWindow = () => {
 
   // In development, load from Vite dev server
   // In production, load from built files
-  if (process.env.NODE_ENV === 'development') {
-    mainWindow.loadURL('http://localhost:5173');
-    mainWindow.webContents.openDevTools();
-  } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
-  }
+  if (process.env.NODE_ENV === "development") {
+   mainWindow.loadURL("http://localhost:8080");
+   mainWindow.webContents.openDevTools();
+ } else {
+   mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
+ }
+
 };
 
 // IPC Handler: Save ICS file to temp directory and open with default app (Outlook)

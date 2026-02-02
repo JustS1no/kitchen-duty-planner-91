@@ -7,8 +7,8 @@ interface MeetingRequestItem {
   subject: string;
   body: string;
   location?: string;
-  startISO: string;
-  endISO: string;
+  startLocal: string; // "YYYY-MM-DD HH:mm" (local time)
+  endLocal: string;   // "YYYY-MM-DD HH:mm" (local time)
   attendees: string[];
 }
 
@@ -178,6 +178,21 @@ export async function openAllDutiesInOutlook(
  * Send Outlook meeting requests for a single employee's duties via COM/OOM
  * This creates real meeting invitations that recipients can accept/decline
  */
+
+function formatYmd(d: Date) {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function addDaysYmd(ymd: string, days: number) {
+  // Force local date math at midnight local time
+  const d = new Date(`${ymd}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return formatYmd(d);
+}
+
 export async function sendEmployeeDutiesAsOutlookInvites(
   entries: DutyEntry[],
   employee: Employee,
@@ -200,16 +215,15 @@ export async function sendEmployeeDutiesAsOutlookInvites(
 
   // Build meeting request items
   const items: MeetingRequestItem[] = employeeEntries.map(entry => {
-    const entryDate = new Date(entry.date);
-    const nextDay = new Date(entryDate);
-    nextDay.setDate(nextDay.getDate() + 1);
+    const startLocal = `${entry.date} 00:00`;
+    const endLocal = `${addDaysYmd(entry.date, 1)} 00:00`;
 
     return {
       date: entry.date,
       subject: `Küchendienst - ${entry.weekday}, ${entry.date}`,
       body: `Küchendienst am ${entry.weekday}, ${entry.date}.\n\nDieser Termin wurde automatisch vom Küchendienst-Planer erstellt.`,
-      startISO: entryDate.toISOString(),
-      endISO: nextDay.toISOString(),
+      startLocal,
+      endLocal,
       attendees: [employee.email],
     };
   });

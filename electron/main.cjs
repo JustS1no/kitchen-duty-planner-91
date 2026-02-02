@@ -145,8 +145,8 @@ ipcMain.handle("send-outlook-meeting-requests", async (_event, payload) => {
       const subject = psEscape(item.subject || "Küchendienst");
       const body = psEscape(item.body || "");
       const location = psEscape(item.location || "");
-      const startISO = psEscape(item.startISO);
-      const endISO = psEscape(item.endISO);
+      const startLocal = psEscape(item.startLocal);
+      const endLocal = psEscape(item.endLocal);
       const attendees = (item.attendees || []).filter(Boolean).map(psEscape);
 
       if (!attendees.length) {
@@ -169,8 +169,8 @@ ${location ? `$appt.Location = '${location}';` : ""}
 
 # all-day event
 $appt.AllDayEvent = $true;
-$appt.Start = [DateTime]::Parse('${startISO}');
-$appt.End   = [DateTime]::Parse('${endISO}');
+$appt.Start = [DateTime]::ParseExact('${startLocal}', 'yyyy-MM-dd HH:mm', $null);
+$appt.End   = [DateTime]::ParseExact('${endLocal}',   'yyyy-MM-dd HH:mm', $null);
 
 # meeting request
 $appt.MeetingStatus = 1; # olMeeting

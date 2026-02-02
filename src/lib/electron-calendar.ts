@@ -2,10 +2,33 @@ import { DutyEntry, Employee } from '@/types/kitchen-duty';
 import { generateIcsFileForEmployee } from './ics-calendar';
 
 // Type definitions for Electron API
+interface MeetingRequestItem {
+  date: string;
+  subject: string;
+  body: string;
+  location?: string;
+  startISO: string;
+  endISO: string;
+  attendees: string[];
+}
+
+interface MeetingRequestPayload {
+  displayOnly: boolean;
+  items: MeetingRequestItem[];
+}
+
+interface MeetingRequestResult {
+  success: boolean;
+  results?: { date: string; success: boolean; action?: string; error?: string }[];
+  error?: string;
+}
+
 interface ElectronAPI {
   openIcsInOutlook: (icsContent: string, fileName: string) => Promise<{ success: boolean; filePath?: string; error?: string }>;
   openMultipleIcsInOutlook: (files: { icsContent: string; fileName: string }[]) => Promise<{ fileName: string; success: boolean; filePath?: string; error?: string }[]>;
+  sendOutlookMeetingRequests: (payload: MeetingRequestPayload) => Promise<MeetingRequestResult>;
   isElectron: () => Promise<boolean>;
+  isWindows: () => Promise<boolean>;
 }
 
 declare global {
@@ -28,6 +51,18 @@ export async function isElectron(): Promise<boolean> {
   if (!window.electronAPI) return false;
   try {
     return await window.electronAPI.isElectron();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check if running on Windows (for COM availability)
+ */
+export async function isWindows(): Promise<boolean> {
+  if (!window.electronAPI) return false;
+  try {
+    return await window.electronAPI.isWindows();
   } catch {
     return false;
   }
@@ -137,4 +172,103 @@ export async function openAllDutiesInOutlook(
   } catch (error) {
     return { results: [{ employeeName: 'System', success: false, error: String(error) }] };
   }
+}
+
+/**
+ * Send Outlook meeting requests for a single employee's duties via COM/OOM
+ * This creates real meeting invitations that recipients can accept/decline
+ */
+export async function sendEmployeeDutiesAsOutlookInvites(
+  entries: DutyEntry[],
+  employee: Employee,
+  options: { displayOnly?: boolean } = {}
+): Promise<{ success: boolean; error?: string; results?: { date: string; success: boolean; action?: string; error?: string }[] }> {
+  if (!window.electronAPI) {
+    return { success: false, error: 'Electron API nicht verfügbar' };
+  }
+
+  // Check if employee has email
+  if (!employee.email) {
+    return { success: false, error: `${employee.name} hat keine E-Mail-Adresse hinterlegt.` };
+  }
+
+  // Filter entries for this employee
+  const employeeEntries = entries.filter(e => e.employeeId === employee.id);
+  if (employeeEntries.length === 0) {
+    return { success: false, error: 'Keine Termine für diesen Mitarbeiter' };
+  }
+
+  // Build meeting request items
+  const items: MeetingRequestItem[] = employeeEntries.map(entry => {
+    const entryDate = new Date(entry.date);
+    const nextDay = new Date(entryDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+
+    return {
+      date: entry.date,
+      subject: `Küchendienst - ${entry.weekday}, ${entry.date}`,
+      body: `Küchendienst am ${entry.weekday}, ${entry.date}.\n\nDieser Termin wurde automatisch vom Küchendienst-Planer erstellt.`,
+      startISO: entryDate.toISOString(),
+      endISO: nextDay.toISOString(),
+      attendees: [employee.email],
+    };
+  });
+
+  const payload: MeetingRequestPayload = {
+    displayOnly: options.displayOnly ?? false,
+    items,
+  };
+
+  try {
+    const result = await window.electronAPI.sendOutlookMeetingRequests(payload);
+    return result;
+  } catch (error) {
+    return { success: false, error: String(error) };
+  }
+}
+
+/**
+ * Send Outlook meeting requests for all employees with duties via COM/OOM
+ */
+export async function sendAllDutiesAsOutlookInvites(
+  entries: DutyEntry[],
+  employees: Employee[],
+  options: { displayOnly?: boolean } = {}
+): Promise<{ results: { employeeName: string; success: boolean; error?: string }[] }> {
+  if (!window.electronAPI) {
+    return { results: [{ employeeName: 'System', success: false, error: 'Electron API nicht verfügbar' }] };
+  }
+
+  const employeesWithDuties = employees.filter(emp =>
+    entries.some(entry => entry.employeeId === emp.id)
+  );
+
+  if (employeesWithDuties.length === 0) {
+    return { results: [{ employeeName: 'System', success: false, error: 'Keine zugewiesenen Dienste' }] };
+  }
+
+  const results: { employeeName: string; success: boolean; error?: string }[] = [];
+
+  for (const employee of employeesWithDuties) {
+    if (!employee.email) {
+      results.push({
+        employeeName: employee.name,
+        success: false,
+        error: 'Keine E-Mail-Adresse hinterlegt',
+      });
+      continue;
+    }
+
+    const result = await sendEmployeeDutiesAsOutlookInvites(entries, employee, options);
+    results.push({
+      employeeName: employee.name,
+      success: result.success,
+      error: result.error,
+    });
+
+    // Small delay between employees
+    await new Promise(resolve => setTimeout(resolve, 200));
+  }
+
+  return { results };
 }

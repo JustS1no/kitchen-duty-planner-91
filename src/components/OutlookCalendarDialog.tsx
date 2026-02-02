@@ -1,6 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DutyEntry, Employee } from '@/types/kitchen-duty';
-import { isElectronEnvironment, openEmployeeDutiesInOutlook, openAllDutiesInOutlook } from '@/lib/electron-calendar';
+import { 
+  isElectronEnvironment, 
+  isWindows, 
+  sendEmployeeDutiesAsOutlookInvites, 
+  sendAllDutiesAsOutlookInvites 
+} from '@/lib/electron-calendar';
 import { downloadIcsFileForEmployee, generateMailtoDataForEmployees, MailtoData } from '@/lib/ics-calendar';
 import {
   Dialog,
@@ -18,7 +23,9 @@ import {
   User,
   Loader2,
   Monitor,
-  Globe
+  Globe,
+  Send,
+  Mail
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -38,7 +45,8 @@ export function OutlookCalendarDialog({
 }: OutlookCalendarDialogProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState<Record<string, boolean>>({});
-  const [sentStatus, setSentStatus] = useState<Record<string, 'pending' | 'opened' | 'error'>>({});
+  const [sentStatus, setSentStatus] = useState<Record<string, 'pending' | 'sent' | 'error'>>({});
+  const [isWindowsPlatform, setIsWindowsPlatform] = useState(false);
   
   const isElectron = isElectronEnvironment();
   const mailtoDataList = generateMailtoDataForEmployees(plan, employees);
@@ -46,17 +54,42 @@ export function OutlookCalendarDialog({
     plan.some(entry => entry.employeeId === emp.id)
   );
 
-  const handleOpenInOutlook = async (employee: Employee) => {
+  // Check if running on Windows for COM availability
+  useEffect(() => {
+    if (isElectron) {
+      isWindows().then(setIsWindowsPlatform);
+    }
+  }, [isElectron]);
+
+  const handleSendInvitation = async (employee: Employee) => {
+    if (!isWindowsPlatform) {
+      toast({
+        title: 'Nicht verfügbar',
+        description: 'Meeting-Einladungen sind nur unter Windows mit Outlook Desktop verfügbar.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!employee.email) {
+      toast({
+        title: 'Keine E-Mail',
+        description: `${employee.name} hat keine E-Mail-Adresse hinterlegt.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setLoading(prev => ({ ...prev, [employee.id]: true }));
     
     try {
-      const result = await openEmployeeDutiesInOutlook(plan, employee);
+      const result = await sendEmployeeDutiesAsOutlookInvites(plan, employee, { displayOnly: false });
       
       if (result.success) {
-        setSentStatus(prev => ({ ...prev, [employee.id]: 'opened' }));
+        setSentStatus(prev => ({ ...prev, [employee.id]: 'sent' }));
         toast({
-          title: 'Outlook geöffnet',
-          description: `Termine für ${employee.name} wurden in Outlook geöffnet.`,
+          title: 'Einladung gesendet',
+          description: `Meeting-Einladung für ${employee.name} wurde versendet.`,
         });
       } else {
         setSentStatus(prev => ({ ...prev, [employee.id]: 'error' }));
@@ -78,11 +111,20 @@ export function OutlookCalendarDialog({
     }
   };
 
-  const handleOpenAllInOutlook = async () => {
+  const handleSendAllInvitations = async () => {
+    if (!isWindowsPlatform) {
+      toast({
+        title: 'Nicht verfügbar',
+        description: 'Meeting-Einladungen sind nur unter Windows mit Outlook Desktop verfügbar.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setLoading(prev => ({ ...prev, all: true }));
     
     try {
-      const { results } = await openAllDutiesInOutlook(plan, employees);
+      const { results } = await sendAllDutiesAsOutlookInvites(plan, employees, { displayOnly: false });
       
       const successful = results.filter(r => r.success);
       const failed = results.filter(r => !r.success);
@@ -90,7 +132,7 @@ export function OutlookCalendarDialog({
       successful.forEach(r => {
         const emp = employees.find(e => e.name === r.employeeName);
         if (emp) {
-          setSentStatus(prev => ({ ...prev, [emp.id]: 'opened' }));
+          setSentStatus(prev => ({ ...prev, [emp.id]: 'sent' }));
         }
       });
       
@@ -103,13 +145,13 @@ export function OutlookCalendarDialog({
       
       if (failed.length === 0) {
         toast({
-          title: 'Alle Termine geöffnet',
-          description: `${successful.length} Mitarbeiter-Termine wurden in Outlook geöffnet.`,
+          title: 'Alle Einladungen gesendet',
+          description: `${successful.length} Meeting-Einladungen wurden versendet.`,
         });
       } else {
         toast({
           title: 'Teilweise erfolgreich',
-          description: `${successful.length} erfolgreich, ${failed.length} Fehler.`,
+          description: `${successful.length} gesendet, ${failed.length} Fehler.`,
           variant: 'destructive',
         });
       }
@@ -167,13 +209,21 @@ export function OutlookCalendarDialog({
 
         <div className="space-y-4 py-4">
           {/* Mode indicator */}
-          <div className={`flex items-center gap-3 p-3 rounded-lg border ${isElectron ? 'bg-primary/5 border-primary/20' : 'bg-warning/10 border-warning/20'}`}>
-            {isElectron ? (
+          <div className={`flex items-center gap-3 p-3 rounded-lg border ${isElectron && isWindowsPlatform ? 'bg-primary/5 border-primary/20' : 'bg-warning/10 border-warning/20'}`}>
+            {isElectron && isWindowsPlatform ? (
               <>
-                <Monitor className="h-5 w-5 text-primary shrink-0" />
+                <Send className="h-5 w-5 text-primary shrink-0" />
                 <div className="text-sm">
-                  <p className="font-medium text-primary">Desktop-App erkannt</p>
-                  <p className="text-muted-foreground">Termine werden direkt in Outlook geöffnet.</p>
+                  <p className="font-medium text-primary">Desktop-App erkannt (Windows)</p>
+                  <p className="text-muted-foreground">Meeting-Einladungen werden direkt über Outlook versendet.</p>
+                </div>
+              </>
+            ) : isElectron ? (
+              <>
+                <Monitor className="h-5 w-5 text-warning shrink-0" />
+                <div className="text-sm">
+                  <p className="font-medium text-warning">Desktop-App (kein Windows)</p>
+                  <p className="text-muted-foreground">Meeting-Einladungen sind nur unter Windows verfügbar. ICS-Download als Alternative.</p>
                 </div>
               </>
             ) : (
@@ -190,19 +240,19 @@ export function OutlookCalendarDialog({
           {employeesWithDuties.length > 0 ? (
             <>
               {/* Batch action */}
-              {isElectron && (
+              {isElectron && isWindowsPlatform && (
                 <div className="flex justify-end">
                   <Button 
-                    onClick={handleOpenAllInOutlook}
+                    onClick={handleSendAllInvitations}
                     disabled={loading.all}
                     className="gap-2"
                   >
                     {loading.all ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <Calendar className="h-4 w-4" />
+                      <Send className="h-4 w-4" />
                     )}
-                    Alle in Outlook öffnen
+                    Alle Einladungen senden
                   </Button>
                 </div>
               )}
@@ -225,10 +275,10 @@ export function OutlookCalendarDialog({
                         <div className="flex items-center gap-2">
                           <User className="h-4 w-4 text-muted-foreground" />
                           <span className="font-medium truncate">{employee.name}</span>
-                          {status === 'opened' && (
+                          {status === 'sent' && (
                             <Badge variant="secondary" className="gap-1 bg-primary/10 text-primary">
                               <Check className="h-3 w-3" />
-                              Geöffnet
+                              Gesendet
                             </Badge>
                           )}
                           {status === 'error' && (
@@ -249,20 +299,27 @@ export function OutlookCalendarDialog({
                       </div>
                       
                       <div className="shrink-0">
-                        {isElectron ? (
-                          <Button
-                            size="sm"
-                            onClick={() => handleOpenInOutlook(employee)}
-                            disabled={isLoading}
-                            className="gap-1"
-                          >
-                            {isLoading ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Calendar className="h-4 w-4" />
-                            )}
-                            In Outlook öffnen
-                          </Button>
+                        {isElectron && isWindowsPlatform ? (
+                          employee.email ? (
+                            <Button
+                              size="sm"
+                              onClick={() => handleSendInvitation(employee)}
+                              disabled={isLoading}
+                              className="gap-1"
+                            >
+                              {isLoading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Send className="h-4 w-4" />
+                              )}
+                              Einladung senden
+                            </Button>
+                          ) : (
+                            <Badge variant="outline" className="gap-1 text-muted-foreground">
+                              <Mail className="h-3 w-3" />
+                              Keine E-Mail
+                            </Badge>
+                          )
                         ) : mailtoData ? (
                           <Button
                             size="sm"

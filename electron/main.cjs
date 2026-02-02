@@ -148,6 +148,7 @@ ipcMain.handle("send-outlook-meeting-requests", async (_event, payload) => {
       const startLocal = psEscape(item.startLocal);
       const endLocal = psEscape(item.endLocal);
       const attendees = (item.attendees || []).filter(Boolean).map(psEscape);
+      const mirrorToDefault = !!item.mirrorToDefault;
 
       if (!attendees.length) {
         results.push({ success: false, date: item.date, error: "Keine Empfänger-Mailadresse" });
@@ -161,7 +162,25 @@ ipcMain.handle("send-outlook-meeting-requests", async (_event, payload) => {
       const psScript = `
 $ErrorActionPreference = "Stop";
 $outlook = New-Object -ComObject Outlook.Application;
-$appt = $outlook.CreateItem(1); # olAppointmentItem
+$ns = $outlook.GetNamespace("MAPI");
+
+# 9 = olFolderCalendar
+$cal = $ns.GetDefaultFolder(9);
+
+# Find or create sub-calendar named "Küchendienst"
+$targetName = "Küchendienst";
+$target = $null;
+
+foreach ($f in $cal.Folders) {
+  if ($f.Name -eq $targetName) { $target = $f; break }
+}
+
+if ($null -eq $target) {
+  $target = $cal.Folders.Add($targetName);
+}
+
+# Create appointment directly in that calendar
+$appt = $target.Items.Add(1); # olAppointmentItem
 
 $appt.Subject = '${subject}';
 $appt.Body = '${body}';
@@ -179,7 +198,25 @@ ${attendeeLines}
 
 $null = $appt.Recipients.ResolveAll();
 
-if (${displayOnly ? "$true" : "$false"}) { $appt.Display(); } else { $appt.Send(); }
+if (${displayOnly ? "$true" : "$false"}) { 
+  $appt.Display(); 
+} else { 
+  $appt.Send(); 
+}
+
+# If this is the current user's duty, also mirror a normal appointment into the default calendar
+if (${mirrorToDefault ? "$true" : "$false"}) {
+  $copy = $cal.Items.Add(1); # olAppointmentItem in default calendar
+  $copy.Subject = '${subject}';
+  $copy.Body = '${body}';
+  ${location ? `$copy.Location = '${location}';` : ""}
+  $copy.AllDayEvent = $true;
+  $copy.Start = [DateTime]::ParseExact('${startLocal}', 'yyyy-MM-dd HH:mm', $null);
+  $copy.End   = [DateTime]::ParseExact('${endLocal}',   'yyyy-MM-dd HH:mm', $null);
+  $copy.MeetingStatus = 0; # normal appointment, no recipients
+  $copy.Save();
+}
+
 "OK";
 `;
 

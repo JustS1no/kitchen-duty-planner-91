@@ -117,114 +117,114 @@ ipcMain.handle('send-outlook-meeting-requests', async (event, payload) => {
     
     // Create Outlook Application object via COM
     function runPowerShell(script) {
-  return new Promise((resolve, reject) => {
-    const ps = spawn(
-      "powershell.exe",
-      ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
-      { windowsHide: true }
-    );
+      return new Promise((resolve, reject) => {
+        const ps = spawn(
+          "powershell.exe",
+          ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
+          { windowsHide: true }
+        );
 
-    let stdout = "";
-    let stderr = "";
+        let stdout = "";
+        let stderr = "";
 
-    ps.stdout.on("data", (d) => (stdout += d.toString()));
-    ps.stderr.on("data", (d) => (stderr += d.toString()));
+        ps.stdout.on("data", (d) => (stdout += d.toString()));
+        ps.stderr.on("data", (d) => (stderr += d.toString()));
 
-    ps.on("close", (code) => {
-      if (code === 0) resolve({ stdout, stderr });
-      else reject(new Error(stderr || stdout));
-    });
-  });
-}
-
-function psEscape(s) {
-  return String(s ?? "").replace(/'/g, "''");
-}
-
-ipcMain.handle("send-outlook-meeting-requests", async (_event, payload) => {
-  try {
-    if (process.platform !== "win32") {
-      return {
-        success: false,
-        error: "Outlook Versand ist nur unter Windows möglich.",
-      };
+        ps.on("close", (code) => {
+          if (code === 0) resolve({ stdout, stderr });
+          else reject(new Error(stderr || stdout));
+        });
+      });
     }
 
-    const items = payload.items || [];
-    const displayOnly = !!payload.displayOnly;
+    function psEscape(s) {
+      return String(s ?? "").replace(/'/g, "''");
+    }
 
-    const results = [];
-
-    for (const item of items) {
-      const subject = psEscape(item.subject || "Küchendienst");
-      const body = psEscape(item.body || "");
-      const startISO = psEscape(item.startISO);
-      const endISO = psEscape(item.endISO);
-
-      const attendees = (item.attendees || []).filter(Boolean).map(psEscape);
-
-      if (!attendees.length) {
-        results.push({
-          success: false,
-          date: item.date,
-          error: "Keine Empfänger-Mailadresse",
-        });
-        continue;
-      }
-
-      const psScript = `
-$ErrorActionPreference = "Stop";
-$outlook = New-Object -ComObject Outlook.Application;
-
-$appt = $outlook.CreateItem(1);
-$appt.Subject = '${subject}';
-$appt.Body = '${body}';
-
-$appt.AllDayEvent = $true;
-$appt.Start = [DateTime]::Parse('${startISO}');
-$appt.End   = [DateTime]::Parse('${endISO}');
-
-$appt.MeetingStatus = 1;
-
-${attendees
-  .map(
-    (a) => `$r = $appt.Recipients.Add('${a}'); $r.Type = 1;`
-  )
-  .join("\n")}
-
-$null = $appt.Recipients.ResolveAll();
-
-if (${displayOnly ? "$true" : "$false"}) {
-  $appt.Display();
-} else {
-  $appt.Send();
-}
-
-"OK";
-`;
-
+    ipcMain.handle("send-outlook-meeting-requests", async (_event, payload) => {
       try {
-        await runPowerShell(psScript);
+        if (process.platform !== "win32") {
+          return {
+            success: false,
+            error: "Outlook Versand ist nur unter Windows möglich.",
+          };
+        }
 
-        results.push({
-          success: true,
-          date: item.date,
-          attendee: attendees[0],
-        });
-      } catch (err) {
-        results.push({
-          success: false,
-          date: item.date,
-          error: String(err.message || err),
-        });
-      }
+        const items = payload.items || [];
+        const displayOnly = !!payload.displayOnly;
+
+        const results = [];
+
+        for (const item of items) {
+          const subject = psEscape(item.subject || "Küchendienst");
+          const body = psEscape(item.body || "");
+          const startISO = psEscape(item.startISO);
+          const endISO = psEscape(item.endISO);
+
+          const attendees = (item.attendees || []).filter(Boolean).map(psEscape);
+
+          if (!attendees.length) {
+            results.push({
+              success: false,
+              date: item.date,
+              error: "Keine Empfänger-Mailadresse",
+            });
+            continue;
+          }
+
+          const psScript = `
+    $ErrorActionPreference = "Stop";
+    $outlook = New-Object -ComObject Outlook.Application;
+
+    $appt = $outlook.CreateItem(1);
+    $appt.Subject = '${subject}';
+    $appt.Body = '${body}';
+
+    $appt.AllDayEvent = $true;
+    $appt.Start = [DateTime]::Parse('${startISO}');
+    $appt.End   = [DateTime]::Parse('${endISO}');
+
+    $appt.MeetingStatus = 1;
+
+    ${attendees
+      .map(
+        (a) => `$r = $appt.Recipients.Add('${a}'); $r.Type = 1;`
+      )
+      .join("\n")}
+
+    $null = $appt.Recipients.ResolveAll();
+
+    if (${displayOnly ? "$true" : "$false"}) {
+      $appt.Display();
+    } else {
+      $appt.Send();
     }
 
-    return { success: true, results };
-  } catch (error) {
-    return { success: false, error: String(error.message || error) };
-  }
-});
+    "OK";
+    `;
+
+          try {
+            await runPowerShell(psScript);
+
+            results.push({
+              success: true,
+              date: item.date,
+              attendee: attendees[0],
+            });
+          } catch (err) {
+            results.push({
+              success: false,
+              date: item.date,
+              error: String(err.message || err),
+            });
+          }
+        }
+
+        return { success: true, results };
+      } catch (error) {
+        return { success: false, error: String(error.message || error) };
+      }
+    });
 
 
 app.whenReady().then(() => {

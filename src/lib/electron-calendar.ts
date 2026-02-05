@@ -208,12 +208,9 @@ export async function sendEmployeeDutiesAsOutlookInvites(
     return { success: false, error: `${employee.name} hat keine E-Mail-Adresse hinterlegt.` };
   }
 
-    // Determine if this employee is the current user (for mirroring into default calendar)
-  // Set your own email in localStorage under key: 'kuechendienst_my_email' (lower/upper case is ignored)
-  const myEmailRaw = 'charlotte.luehrs@untis.de';
-  const myEmail = myEmailRaw.trim().toLowerCase();
-  const employeeEmail = (employee.email || '').trim().toLowerCase();
-  const isMine = !!myEmail && employeeEmail === myEmail;
+  // Determine if this employee is the current user (Organizer) chosen at app start.
+  const organizerId = (localStorage.getItem("kitchen-duty-organizer-id") || "").trim();
+  const isMine = !!organizerId && organizerId === employee.id;
 
 // Filter entries for this employee
   const employeeEntries = entries.filter(e => e.employeeId === employee.id);

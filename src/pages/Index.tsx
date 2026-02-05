@@ -195,7 +195,7 @@ const Index = () => {
                     id="new-org-name"
                     value={newOrganizerName}
                     onChange={(e) => setNewOrganizerName(e.target.value)}
-                    placeholder="z.B. Sina Shirvani"
+                    placeholder="z.B. Max Mustermann"
                   />
                 </div>
                 <div className="space-y-2">
@@ -205,7 +205,7 @@ const Index = () => {
                     type="email"
                     value={newOrganizerEmail}
                     onChange={(e) => setNewOrganizerEmail(e.target.value)}
-                    placeholder="z.B. sina@firma.de"
+                    placeholder="z.B. name@company.de"
                   />
                 </div>
               </div>

@@ -19,6 +19,7 @@ import { format } from 'date-fns';
 const Index = () => {
   const [employees, setEmployees] = useLocalStorage<Employee[]>('kitchen-duty-employees', []);
   const [organizerId, setOrganizerId] = useLocalStorage<string>('kitchen-duty-organizer-id', '');
+  const [_organizerEmail, setOrganizerEmail] = useLocalStorage<string>('kitchen-duty-organizer-email', '');
   const [showOrganizerGate, setShowOrganizerGate] = useState(true);
   const [setupMode, setSetupMode] = useState<'select' | 'new'>('select');
   const [newOrganizerName, setNewOrganizerName] = useState('');
@@ -59,6 +60,7 @@ const Index = () => {
 
       setEmployees([...employees, newEmp]);
       setOrganizerId(id);
+      setOrganizerEmail((email || '').trim());
       setShowOrganizerGate(false);
       setSetupMode('select');
       setNewOrganizerName('');
@@ -70,6 +72,10 @@ const Index = () => {
       setOrganizerError('Bitte wähle einen Mitarbeiter aus oder lege einen neuen an.');
       return;
     }
+
+    // Keep organizer email in sync (used for Outlook mirror-to-default logic)
+    const sel = employees.find(e => e.id === organizerId);
+    setOrganizerEmail((sel?.email || '').trim());
 
     setShowOrganizerGate(false);
   };
@@ -169,6 +175,8 @@ const Index = () => {
                   }
                   setSetupMode('select');
                   setOrganizerId(val);
+                  const sel = employees.find(e => e.id === val);
+                  setOrganizerEmail((sel?.email || '').trim());
                 }}
               >
                 <SelectTrigger>

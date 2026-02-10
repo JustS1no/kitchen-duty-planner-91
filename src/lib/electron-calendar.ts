@@ -210,7 +210,11 @@ export async function sendEmployeeDutiesAsOutlookInvites(
 
   // Determine if this employee is the current user (Organizer) chosen at app start.
   const organizerId = (localStorage.getItem("kitchen-duty-organizer-id") || "").trim();
-  const isMine = !!organizerId && organizerId === employee.id;
+  const organizerEmail = (localStorage.getItem("kitchen-duty-organizer-email") || "").trim().toLowerCase();
+
+  // Prefer email-based match (robust if IDs change/duplicates), fallback to ID match
+  const isMine = (!!organizerEmail && !!employee.email && employee.email.toLowerCase() === organizerEmail)
+    || (!!organizerId && organizerId === employee.id);
 
 // Filter entries for this employee
   const employeeEntries = entries.filter(e => e.employeeId === employee.id);

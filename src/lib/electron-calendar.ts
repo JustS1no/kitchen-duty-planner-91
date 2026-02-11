@@ -209,12 +209,21 @@ export async function sendEmployeeDutiesAsOutlookInvites(
   }
 
   // Determine if this employee is the current user (Organizer) chosen at app start.
-  const organizerId = (localStorage.getItem("kitchen-duty-organizer-id") || "").trim();
-  const organizerEmail = (localStorage.getItem("kitchen-duty-organizer-email") || "").trim().toLowerCase();
+  // Read organizer id from localStorage. Note: our useLocalStorage hook stores values as JSON,
+  // so strings are persisted with quotes (e.g. "\"abc\""). We therefore try JSON.parse first.
+  const organizerIdRaw = localStorage.getItem("kitchen-duty-organizer-id");
+  let organizerId = "";
+  if (organizerIdRaw) {
+    try {
+      const parsed = JSON.parse(organizerIdRaw);
+      organizerId = typeof parsed === "string" ? parsed : String(parsed ?? "");
+    } catch {
+      organizerId = organizerIdRaw;
+    }
+  }
+  organizerId = organizerId.trim();
 
-  // Prefer email-based match (robust if IDs change/duplicates), fallback to ID match
-  const isMine = (!!organizerEmail && !!employee.email && employee.email.toLowerCase() === organizerEmail)
-    || (!!organizerId && organizerId === employee.id);
+  const isMine = !!organizerId && organizerId === employee.id;
 
 // Filter entries for this employee
   const employeeEntries = entries.filter(e => e.employeeId === employee.id);
